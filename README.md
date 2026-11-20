@@ -5,7 +5,7 @@
 ## 仓库与在线试玩
 
 - GitHub：https://github.com/Raingor/game-2048
-- GitHub Pages：https://raingor.github.io/game-2048/ （真实位移动画版此前已部署并通过线上50项检查；本轮19角色陪伴功能尚待协调方浏览器验收、提交及发布，不能视为新版已上线）
+- GitHub Pages：https://raingor.github.io/game-2048/ （19角色陪伴版已上线，线上27项头像检查与50项完整玩法回归通过；52项单测与严格构建通过）
 - 每次推送 main 自动执行单元测试与生产构建，仅发布 `dist/` 静态文件。
 
 ## 启动与验证
@@ -61,7 +61,7 @@ GAME_URL=http://localhost:5174/ node scripts/characters-smoke.mjs
 GAME_URL=http://localhost:5174/ npm run test:browser
 ```
 
-新增脚本覆盖19张加载、19角色逐一真实选择、刷新保存、损坏/非法/禁用存储、原生details键盘与Escape、方向键隔离、360px溢出检查，并生成 `artifacts/characters-*.png` 及 `characters-results.json`。本Agent按错峰要求未启动浏览器，脚本与上述界面均待主Agent实际验收。
+新增脚本覆盖19张加载、19角色逐一真实选择、刷新保存、损坏/非法/禁用存储、原生details键盘与Escape、方向键隔离、360px溢出检查，并生成 `artifacts/characters-*.png` 及 `characters-results.json`。子Agent按错峰要求未启动浏览器；随后主Agent独立本地与线上各27项头像+50项玩法检查通过，人物版已发布。
 
 ## 保存与降级
 

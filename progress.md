@@ -99,3 +99,9 @@
 - 发布后同样通过GAME_URL传入Pages地址复验，由主Agent统一处理。
 
 本轮没有新增/停止服务；原preview服务由协调方控制。代码/脚本/README/progress/task_plan已冻结，待主Agent浏览器与视觉检查。
+
+## 主Agent人物版发布验收（2026-11-20）
+- 代码提交 `f1c288e` 已推送main，Pages工作流 https://github.com/Raingor/game-2048/actions/runs/44733682435 成功。
+- 主Agent独立单测与生产构建通过；本地与线上均通过 27 项人物检查和 50 项完整玩法回归。
+- 线上地址 https://raingor.github.io/game-2048/ ，全部19张头像加载、选择与刷新保存、键盘与360px手机、存储异常降级通过；无页面、控制台或HTTP资源错误。
+- 新版已上线，上文子Agent“未启动浏览器/待主Agent发布”仅为历史交接状态；截图和JSON位于忽略的artifacts目录，不提交构建/凭据。
