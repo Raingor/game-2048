@@ -73,3 +73,29 @@
 - `GAME_URL=https://raingor.github.io/game-2048/ npm run test:browser`：50/50，exit 0。
 - 线上覆盖150ms真实两帧位移、合并弹跳/新块出现、快速四方向输入、动画中撤销/重开/resize、减少动态效果切换、胜利立即存档和后台结算。无pageerror、console error或HTTP错误。
 - 在线地址保持 https://raingor.github.io/game-2048/ 。新版已发布并完成线上验收，上述“仅本地完成/待主Agent发布”为此前子Agent交付时的历史状态。
+
+## 19角色陪伴任务（子Agent，本轮未运行浏览器）
+
+用户要求所有游戏加入原消消乐人物头像。本轮仅维护game-2048目录，保留已上线规则与真实滑动动画，不修改engine/motion模块；没有git/提交/推送/发布/写memory，也未操作其他游戏或根计划。
+
+实现：
+- 从用户指定catalog读取19人物，只复制19张 `<id>.webp` 至 `public/characters-2d/`，逐字节校验一致，共682,082 bytes；无full身图、PNG或Three.js。
+- 新增 `src/characters.ts` / `characters.css`：本地必要身份字段、头像URL、独立偏好读写、暖陶土陪伴头像/名字及原生details角色网格。主界面替换原合并示意装饰，不覆盖棋盘。
+- 全部19人可选；图片alt、按钮aria-label/aria-pressed、非纯颜色勾选、明确焦点圈；选择后与Escape后收起返回summary。
+- 角色组件位于游戏键盘域之外，不抢方向键；360px采用四列可滚动网格，最长姓名支持换行。
+- 偏好key `puzzle-2048-character-v1`，版本1，仅保存id。try/catch涵盖存储getter/read/write；非法id、损坏JSON或不支持版本退回classic；不能写入时照常选择并提示。
+- 新增 `src/characters.test.ts` 15项；`scripts/characters-smoke.mjs`覆盖19图加载/全部19角色真实选择/刷新/错误与禁用存储/键盘/Escape/方向键隔离/360宽度/错误收集，生成独立characters截图和JSON，无产品cheat globals。
+
+实际运行：
+- `npm test`：52/52，3个文件（原37+15角色测试）。
+- `npm run build`：tsc与Vite成功，CSS约14.01kB/JS约18.26kB（未gzip）。
+- `node --check scripts/characters-smoke.mjs`：通过。
+- 19张复制素材逐字节比对：通过，682,082 bytes。
+- **按主Agent错峰要求，本轮未启动浏览器、未生成新的characters截图、未做新版线上验收。** 旧版50项通过仅属历史，不能冒充头像版通过。
+
+交接验收命令（在本项目目录运行）：
+- `GAME_URL=http://localhost:5174/ node scripts/characters-smoke.mjs`
+- `GAME_URL=http://localhost:5174/ npm run test:browser`
+- 发布后同样通过GAME_URL传入Pages地址复验，由主Agent统一处理。
+
+本轮没有新增/停止服务；原preview服务由协调方控制。代码/脚本/README/progress/task_plan已冻结，待主Agent浏览器与视觉检查。

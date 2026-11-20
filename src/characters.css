@@ -1,0 +1,52 @@
+/* A small terracotta portrait album, intentionally outside the game keyboard scope. */
+.character-host { max-width: 100%; margin-top: 32px; }
+.companion { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.companion-summary { position: relative; display: flex; align-items: center; gap: 13px; padding: 15px 0; cursor: pointer; list-style: none; outline-offset: 4px; }
+.companion-summary::-webkit-details-marker { display: none; }
+.companion-summary::marker { content: ''; }
+.companion-summary:focus-visible, .companion-option:focus-visible { outline: 3px solid #733d21; outline-offset: 3px; }
+.companion-portrait { width: 72px; height: 72px; flex: 0 0 72px; object-fit: contain; border-radius: 50%; background: #e7d7bf; border: 1px solid #cbb294; box-shadow: inset 0 0 0 4px #f5eee1; }
+.companion-copy { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.companion-eyebrow { color: var(--clay); font-size: 8px; letter-spacing: .1em; }
+.companion-name { font-family: 'Songti SC', 'STSong', serif; font-size: 20px; font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
+.companion-whisper { color: var(--muted); font-size: 10px; line-height: 1.7; }
+.companion-switch { margin-left: auto; flex: 0 0 auto; font-size: 10px; color: var(--clay); white-space: nowrap; }
+.companion-switch > span { display: inline-block; font-size: 16px; margin-left: 5px; transition: transform .15s; }
+.companion[open] .companion-switch > span { transform: rotate(45deg); }
+.companion-collection { padding: 3px 0 15px; }
+.companion-heading { margin: 0 0 13px; color: var(--muted); font-size: 10px; line-height: 1.9; }
+.companion-heading > span { display: block; font-size: 8px; letter-spacing: .07em; }
+.companion-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-height: 300px; overflow-y: auto; overscroll-behavior: contain; padding: 4px; scrollbar-color: #ad8b74 #e9dfd0; scrollbar-width: thin; }
+.companion-option { position: relative; min-width: 0; display: flex; align-items: center; flex-direction: column; gap: 5px; border: 1px solid transparent; background: #eae0d1; border-radius: 8px; padding: 7px 2px; }
+.companion-option:hover { background: #e0cfba; }
+.companion-option[aria-pressed='true'] { border-color: var(--clay); background: #eddbca; box-shadow: inset 0 0 0 1px var(--clay); }
+.companion-option img { display: block; width: min(52px, 100%); height: 52px; object-fit: contain; }
+.companion-option > span { font-size: 9px; line-height: 1.5; white-space: nowrap; }
+.companion-option > i { display: none; position: absolute; top: 3px; right: 4px; width: 14px; height: 14px; line-height: 14px; border-radius: 50%; background: var(--clay); color: #fff7ee; font-style: normal; font-size: 10px; text-align: center; }
+.companion-option[aria-pressed='true'] > i { display: block; }
+.companion-feedback { color: var(--muted); font-size: 10px; line-height: 1.7; margin: 8px 0 0; }
+.companion-feedback:empty { display: none; }
+@media (max-width: 950px) and (min-width: 701px) {
+  .companion-summary { gap: 9px; flex-wrap: wrap; }
+  .companion-portrait { width: 58px; height: 58px; flex-basis: 58px; }
+  .companion-eyebrow { font-size: 7px; }
+  .companion-whisper { font-size: 9px; }
+  .companion-switch { width: 100%; text-align: right; margin-top: -3px; }
+  .companion-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .character-host { margin-top: 20px; }
+  .introduction:has(.character-host) .text-button { top: 62px; bottom: auto; }
+  .companion-summary { gap: 11px; padding: 11px 0; }
+  .companion-portrait { width: 58px; height: 58px; flex-basis: 58px; }
+  .companion-name { font-size: 18px; }
+  .companion-copy { gap: 4px; }
+  .companion-eyebrow { font-size: 7px; }
+  .companion-whisper { font-size: 9px; }
+  .companion-switch { font-size: 9px; }
+  .companion-switch > span { margin-left: 1px; font-size: 14px; }
+  .companion-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: 288px; gap: 7px; }
+  .companion-option { padding: 7px 3px; }
+  .companion-heading { margin-bottom: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .companion-switch > span { transition: none; } }

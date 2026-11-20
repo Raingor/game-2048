@@ -5,7 +5,7 @@
 ## 仓库与在线试玩
 
 - GitHub：https://github.com/Raingor/game-2048
-- GitHub Pages：https://raingor.github.io/game-2048/ （真实位移动画版已于2026-11-20部署，线上50项浏览器检查全部通过）
+- GitHub Pages：https://raingor.github.io/game-2048/ （真实位移动画版此前已部署并通过线上50项检查；本轮19角色陪伴功能尚待协调方浏览器验收、提交及发布，不能视为新版已上线）
 - 每次推送 main 自动执行单元测试与生产构建，仅发布 `dist/` 静态文件。
 
 ## 启动与验证
@@ -46,6 +46,23 @@ npm run test:browser
 - 普通情况下在位移和反馈完成后显示胜败弹窗；切后台会直接结算显示，不依赖 requestAnimationFrame 或固定超时推进规则。异步清理由 generation 与 `Animation.finished` 控制，取消的旧回调不会恢复旧局。
 - 减少动态效果偏好开启或切换时立即清理动画并显示终态；该模式下不创建平移、弹跳或新块缩放动画。
 
+## 19位陪伴角色
+
+主界面提供头像与人物名字，展开原生 `details` 可选择消消乐中的全部19位伙伴。所有角色直接可选，无关卡解锁限制；选完自动收起，焦点返回展开入口。键盘 Enter 展开、Tab 到角色、Enter/空格选择，Escape 收起并返回入口。角色区域在游戏方向键接管范围之外，不会改变棋盘或分数。
+
+人物名单从用户指定的消消乐 `catalog.ts` 复制必要的 id/name/short，**仅复制19张 WebP 头像**至本项目 `public/characters-2d/`（总682,082 bytes），没有full身图、PNG、Three.js或兄弟目录运行时依赖。图片使用 `./characters-2d/<id>.webp` 相对路径，兼容本地和Pages子路径。
+
+选择偏好独立存于 `puzzle-2048-character-v1`，结构为 `{ version: 1, id }`；不混入棋盘存档。读取/写入均捕获异常，损坏JSON、不支持版本或非法id安全退回自嘲熊（Joke Bear）；存储不可用时仍可选择，提示不能保存。
+
+```sh
+# 由协调方错峰运行；需独立Chrome，不使用用户登录会话
+GAME_URL=http://localhost:5174/ node scripts/characters-smoke.mjs
+# 仍须回归原玩法与真实位移动画
+GAME_URL=http://localhost:5174/ npm run test:browser
+```
+
+新增脚本覆盖19张加载、19角色逐一真实选择、刷新保存、损坏/非法/禁用存储、原生details键盘与Escape、方向键隔离、360px溢出检查，并生成 `artifacts/characters-*.png` 及 `characters-results.json`。本Agent按错峰要求未启动浏览器，脚本与上述界面均待主Agent实际验收。
+
 ## 保存与降级
 
 存储 key：`puzzle-2048-v1`。仅保存版本、最高分、当前棋盘/分数/达成与继续状态、最近一步快照。刷新可继续本局及撤销。
@@ -60,11 +77,21 @@ npm run test:browser
 - `src/storage.ts`：独立版本化存档、字段校验、异常降级。
 - `src/main.ts`、`src/style.css`：界面、输入、可访问弹窗、响应式和减少动态效果支持。
 - `src/motion.ts`：可取消的真实位移、合并弹跳和新块出现，使用 WAAPI 与 generation 清理。
-- `src/engine.test.ts`、`src/storage.test.ts`：37 个单元测试，包含四方向轨迹、跨空格、来源唯一性及不重复合并。
+- `src/characters.ts`、`src/characters.css`：本地角色名单、独立偏好存储、原生details选择器与陶土主题样式。
+- `src/engine.test.ts`、`src/storage.test.ts`、`src/characters.test.ts`：52 个单元测试，原37项规则/存档与15项角色偏好测试。
+- `scripts/characters-smoke.mjs`：独立角色浏览器验收脚本，使用GAME_URL，覆盖19头像/选择/保存/降级/键盘/360px。
 - `scripts/smoke.mjs`：50 项真实浏览器检查，保留原36项；桌面 1440×900、触屏 390×844 / 360×844，CDP 真触摸事件、胜败/撤销/重开/持久化、焦点、存储降级和错误收集。新增真实两帧位移、合并/生块反馈、快速输入/撤销/重开/resize清理、减少动态效果0运动、后台结算检查。
 - `artifacts/`：忽略的截图与 `smoke-results.json`，每次脚本运行更新。
 
-## 实际验收结果
+## 本轮角色功能实际验收
+
+- `npm test`：52/52，3个测试文件通过（原37+角色15）。
+- `npm run build`：严格类型检查及生产构建成功。
+- `node --check scripts/characters-smoke.mjs`：语法检查成功。
+- 19张WebP与源文件逐字节一致，合计682,082 bytes，未复制额外素材。
+- **未运行新版浏览器检查或新版线上验收**：按协调方错峰要求交由其执行；没有新增浏览器截图，不能把下列历史结果视为头像版通过。
+
+## 此前真实位移动画版验收（历史）
 
 - `npm install`：成功；48 个已审计包，0 vulnerabilities。
 - 本轮 `npm test`：37/37，规则与轨迹22项、存储15项。

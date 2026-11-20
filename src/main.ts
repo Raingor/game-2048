@@ -2,6 +2,7 @@ import './style.css';
 import { continueGame, createGame, moveWithTrace, status, undo, type Direction } from './engine';
 import { BoardMotion } from './motion';
 import { loadSave, saveGame } from './storage';
+import { mountCharacters } from './characters';
 
 const saved = loadSave();
 let game = saved.current ?? createGame();
@@ -20,8 +21,7 @@ app.innerHTML = `
         <p class="subtitle">把相同的数字，<br>推向新的可能。</p>
         <p class="intro-copy">不必赶时间。让指尖找到方向，<br>在四乘四的小天地里，积木成诗。</p>
         <button class="text-button" id="help">玩法说明 <span aria-hidden="true">＋</span></button>
-        <div class="clay-study" aria-hidden="true"><span>2</span><span>2</span><i>→</i><span>4</span></div>
-        <p class="side-note">一点专注，一点运气。<br>下一块，或许就有惊喜。</p>
+        <div class="character-host" id="characters"></div>
       </section>
       <section class="game" aria-label="2048 游戏区域">
         <div class="game-top"><p class="score-line">分数 <strong id="score">0</strong><span class="score-divider">/</span><span>最高 <b id="best">0</b></span></p><span class="target">目标 <b>2048</b></span></div>
@@ -40,6 +40,7 @@ const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>
 const board = $<HTMLDivElement>('#board');
 const dialog = $<HTMLDialogElement>('#dialog');
 const content = $('#dialog-content');
+mountCharacters($('#characters'));
 
 for (let i = 0; i < 16; i++) {
   const tile = document.createElement('div');
