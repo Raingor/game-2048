@@ -64,4 +64,12 @@
 
 服务：本轮自己的5184开发服务已停止；原5174生产preview保持运行。新版线上复验与发布交由主Agent；不把旧版已上线视为新动画已发布。
 
-交付状态：代码/脚本/README/progress/task_plan已冻结，不再修改；没有已知功能阻塞。
+子Agent交付状态：代码/脚本/README/progress/task_plan已冻结；没有已知功能阻塞。后续发布由主Agent接管。
+
+## 真实过渡版上线验收（主Agent，2026-11-20）
+
+- 主Agent独立复核37项单测、严格构建及生产预览50项浏览器检查，均通过；查看中间帧截图，确认数字块真实处于两格之间。
+- 动画代码提交 `d51422f` 已推送main；Pages工作流 https://github.com/Raingor/game-2048/actions/runs/44727475168 成功。
+- `GAME_URL=https://raingor.github.io/game-2048/ npm run test:browser`：50/50，exit 0。
+- 线上覆盖150ms真实两帧位移、合并弹跳/新块出现、快速四方向输入、动画中撤销/重开/resize、减少动态效果切换、胜利立即存档和后台结算。无pageerror、console error或HTTP错误。
+- 在线地址保持 https://raingor.github.io/game-2048/ 。新版已发布并完成线上验收，上述“仅本地完成/待主Agent发布”为此前子Agent交付时的历史状态。

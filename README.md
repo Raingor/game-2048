@@ -5,7 +5,7 @@
 ## 仓库与在线试玩
 
 - GitHub：https://github.com/Raingor/game-2048
-- GitHub Pages：https://raingor.github.io/game-2048/ （原版本已部署并通过线上36项检查；本轮新增真实位移动画的代码仅完成本地验收，待协调方提交发布及线上复验）
+- GitHub Pages：https://raingor.github.io/game-2048/ （真实位移动画版已于2026-11-20部署，线上50项浏览器检查全部通过）
 - 每次推送 main 自动执行单元测试与生产构建，仅发布 `dist/` 静态文件。
 
 ## 启动与验证
@@ -71,7 +71,9 @@ npm run test:browser
 - 本轮 `npm run build`：严格类型检查及生产构建成功。
 - 本轮开发态 `npm run dev -- --port 5184` + `GAME_URL=http://localhost:5184 npm run test:browser`：50/50。
 - 本轮生产态 `GAME_URL=http://localhost:5174 npm run test:browser`：50/50，含新增截图前后真实中间位置断言。
-- 原版本同一生产包子路径 `npm run preview -- --base=/game-2048/ --port 5184` + `GAME_URL=http://localhost:5184/game-2048/ npm run test:browser`：36/36；本轮不宣称已重新发布或完成新版线上验收。
-- 本轮开发和生产浏览器验收均无 pageerror、异常 console error、HTTP 404 或其他 HTTP 错误；390/360 无横向溢出。
+- 原版本同一生产包子路径 `npm run preview -- --base=/game-2048/ --port 5184` + `GAME_URL=http://localhost:5184/game-2048/ npm run test:browser`：36/36。
+- 真实位移动画版代码提交 `d51422f`；[Pages部署工作流44727475168](https://github.com/Raingor/game-2048/actions/runs/44727475168)成功。
+- 新版线上 `GAME_URL=https://raingor.github.io/game-2048/ npm run test:browser`：50/50，含真实中间位移、合并/新块反馈、快速操作和动画中断回归。
+- 本轮开发、生产预览和线上浏览器验收均无 pageerror、异常 console error、HTTP 404 或其他 HTTP 错误；390/360 无横向溢出。
 
-截图：`artifacts/desktop-1440.png`、`mobile-390.png`、`mobile-360-reduced-motion.png`、`victory.png`、`game-over.png`、`sliding-intermediate.png`、`merge-spawn-feedback.png`。两张动画证据使用viewport截图，避免fullPage改变视口触发产品正确的resize清理；截图前后断言动画仍暂停在真实中间位移/反馈状态。本地验证不等于远程发布；仓库及发布由协调方统一处理。
+截图：`artifacts/desktop-1440.png`、`mobile-390.png`、`mobile-360-reduced-motion.png`、`victory.png`、`game-over.png`、`sliding-intermediate.png`、`merge-spawn-feedback.png`。两张动画证据使用viewport截图，避免fullPage改变视口触发产品正确的resize清理；截图前后断言动画仍暂停在真实中间位移/反馈状态。仓库及发布由主Agent统一处理；本轮本地与线上验收均已完成。
