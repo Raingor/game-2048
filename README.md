@@ -5,7 +5,7 @@
 ## 仓库与在线试玩
 
 - GitHub：https://github.com/Raingor/game-2048
-- GitHub Pages：https://raingor.github.io/game-2048/ （发布配置已加入，首次部署与线上验收进行中）
+- GitHub Pages：https://raingor.github.io/game-2048/ （已部署；线上36项真实浏览器检查通过）
 - 每次推送 main 自动执行单元测试与生产构建，仅发布 `dist/` 静态文件。
 
 ## 启动与验证

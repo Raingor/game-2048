@@ -33,4 +33,11 @@
 
 5174 生产 preview 保持运行，地址 `http://localhost:5174/`。5184 临时子路径预览停止。未修改兄弟项目和根级计划；未创建仓库、提交、推送或部署；协调方新增的 `.github/workflows/deploy.yml` 未改动。
 
-状态：本游戏完整交付，无已知阻塞问题；代码与文档已冻结供协调方接管。
+状态：本游戏完整交付，无已知阻塞问题；子 Agent 代码交付后由主 Agent 接管发布。
+
+## GitHub Pages 发布（主 Agent，2026-11-20）
+- 仓库：https://github.com/Raingor/game-2048 ，独立公开仓库，main。
+- 首次代码提交：`22ea24c`；工作流 https://github.com/Raingor/game-2048/actions/runs/44712082116 成功。
+- 站点：https://raingor.github.io/game-2048/ ，实测 HTTP 200。
+- `GAME_URL=https://raingor.github.io/game-2048/ npm run test:browser`：36/36，桌面/手机真实操作、胜败、滑动、存储及资源检查全部通过。
+- 主 Agent 另独立实跑29项单测、严格构建与本地36项浏览器检查，均通过。未将依赖、构建、截图或凭据提交。
