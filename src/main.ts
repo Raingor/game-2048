@@ -1,5 +1,6 @@
 import './style.css';
-import { continueGame, createGame, move, status, undo, type Direction } from './engine';
+import { continueGame, createGame, moveWithTrace, status, undo, type Direction } from './engine';
+import { BoardMotion } from './motion';
 import { loadSave, saveGame } from './storage';
 
 const saved = loadSave();
@@ -46,17 +47,18 @@ for (let i = 0; i < 16; i++) {
   board.append(tile);
 }
 
+const cells = Array.from(board.querySelectorAll<HTMLDivElement>('[data-cell]'));
+const motion = new BoardMotion(board, cells);
+
 function persist() {
   best = Math.max(best, game.score);
   $('#storage-note').hidden = saveGame(game, best);
 }
 
-function render(message?: string, animate = false) {
-  Array.from(board.children).forEach((element, i) => {
-    const tile = element as HTMLDivElement;
+function render(message?: string) {
+  cells.forEach((tile, i) => {
     const value = game.board[i];
-    const changed = tile.dataset.value !== String(value);
-    tile.className = `tile ${value ? `filled tile-${Math.min(value, 4096)}` : 'empty'}${value >= 1024 ? ' small-number' : ''}${value >= 16384 ? ' tiny-number' : ''}${animate && changed && value ? ' fresh' : ''}`;
+    tile.className = `tile ${value ? `filled tile-${Math.min(value, 4096)}` : 'empty'}${value >= 1024 ? ' small-number' : ''}${value >= 16384 ? ' tiny-number' : ''}`;
     tile.textContent = value ? String(value) : '';
     tile.dataset.value = String(value);
     tile.setAttribute('aria-label', `第 ${Math.floor(i / 4) + 1} 行，第 ${i % 4 + 1} 列，${value || '空'}`);
@@ -68,6 +70,9 @@ function render(message?: string, animate = false) {
 }
 
 function openDialog(kind: string) {
+  motion.cancel();
+  // A committed terminal move takes precedence over an incidental help/restart click.
+  if (status(game) !== 'playing' && (kind === 'help' || kind === 'restart')) kind = status(game);
   savedFocus = document.activeElement as HTMLElement;
   dialogKind = kind;
   const views: Record<string, string> = {
@@ -88,19 +93,25 @@ function closeDialog() {
 
 function checkResult() {
   const result = status(game);
-  if (result !== 'playing') openDialog(result);
+  if (result !== 'playing' && !dialog.open) openDialog(result);
 }
 
 function play(direction: Direction) {
   if (dialog.open) return;
+  // Every input acts on the already-committed state. Interrupting visual motion never drops a move.
+  motion.cancel();
+  if (status(game) !== 'playing') { checkResult(); return; }
   const before = game;
-  game = move(game, direction);
-  if (before === game) { render('这个方向暂时不行，换个方向试试。'); return; }
+  const next = moveWithTrace(game, direction);
+  game = next.state;
+  if (!next.trace) { render('这个方向暂时不行，换个方向试试。'); return; }
   const gain = game.score - before.score;
-  persist(); render(gain ? `合而为一，获得 ${gain} 分。` : '挪出一点空间，等待新的相遇。', true); checkResult();
+  persist(); render(gain ? `合而为一，获得 ${gain} 分。` : '挪出一点空间，等待新的相遇。');
+  void motion.play(next.trace, checkResult);
 }
 
 function undoMove() {
+  motion.cancel();
   game = undo(game); persist(); render('已撤销一步。换个方向，也许不同。');
 }
 
@@ -161,5 +172,11 @@ board.addEventListener('pointerup', event => {
 });
 board.addEventListener('pointercancel', () => { pointer = null; });
 board.addEventListener('lostpointercapture', () => { pointer = null; });
+
+function settlePresentation() { motion.cancel(); checkResult(); }
+window.addEventListener('resize', settlePresentation);
+document.addEventListener('visibilitychange', settlePresentation);
+window.addEventListener('pagehide', () => motion.cancel());
+motion.preference.addEventListener('change', settlePresentation);
 
 persist(); render(saved.current ? '欢迎回来，接着上次的灵感。' : '新的开始，向任意方向试试。'); checkResult();

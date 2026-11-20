@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canMove, continueGame, createGame, mergeLine, move, slide, spawn, status, undo, type GameState } from './engine';
+import { canMove, continueGame, createGame, mergeLine, move, moveWithTrace, slide, spawn, status, undo, type GameState } from './engine';
 
 const game = (board: number[], score = 0): GameState => ({ board, score, won: false, continued: false, previous: null });
 const row = (...values: number[]) => [...values, ...Array(16 - values.length).fill(0)];
@@ -70,6 +70,52 @@ describe('2048 rules', () => {
     const next = move(initial, 'right', () => 0);
     expect(status(next)).toBe('over');
     expect(undo(next)).toEqual(initial);
+  });
+  it.each([
+    ['left', [0, 3], [0, 0]],
+    ['right', [3, 0], [3, 3]],
+    ['up', [0, 12], [0, 0]],
+    ['down', [12, 0], [12, 12]],
+  ] as const)('tracks both sources across empty space going %s', (direction, sources, targets) => {
+    const board = Array(16).fill(0);
+    sources.forEach(index => { board[index] = 2; });
+    const result = slide(board, direction);
+    expect(result.travels).toEqual(sources.map((from, i) => ({ from, to: targets[i], value: 2 })));
+    expect(result.merged).toEqual([targets[0]]);
+    expect(result.board[targets[0]]).toBe(4);
+  });
+  it('maps four equal sources into two independent merges, never a chained merge', () => {
+    const result = slide(row(2, 2, 2, 2), 'left');
+    expect(result.travels).toEqual([0, 1, 2, 3].map(from => ({ from, to: Math.floor(from / 2), value: 2 })));
+    expect(result.merged).toEqual([0, 1]);
+    expect(result.board).toEqual(row(4, 4));
+    expect(slide(row(2, 2, 4), 'left').merged).toEqual([0]);
+  });
+  it('includes stationary tiles exactly once and never emits empty-cell sources', () => {
+    const result = slide(row(2, 0, 4), 'left');
+    expect(result.travels).toEqual([{ from: 0, to: 0, value: 2 }, { from: 2, to: 1, value: 4 }]);
+    expect(result.merged).toEqual([]);
+    expect(slide(row(2), 'left').travels).toEqual([{ from: 0, to: 0, value: 2 }]);
+  });
+  it('returns the same trace used to commit the state and identifies only the spawned cell', () => {
+    const initial = game(row(2, 0, 2));
+    const result = moveWithTrace(initial, 'left', () => 0);
+    expect(result.trace?.board).toEqual(row(4));
+    expect(result.trace?.spawned).toBe(1);
+    expect(result.state.board).toEqual(row(4, 2));
+    expect(result.state.previous?.board).toEqual(initial.board);
+    expect(moveWithTrace(game(row(2)), 'left').trace).toBeNull();
+  });
+  it('trace provenance reconstructs every slide across all directions', () => {
+    const board = [0, 2, 0, 2, 4, 4, 4, 4, 8, 0, 16, 8, 0, 2, 2, 4];
+    for (const direction of ['left', 'right', 'up', 'down'] as const) {
+      const result = slide(board, direction);
+      const reconstructed = Array(16).fill(0);
+      result.travels.forEach(({ from, to, value }) => { expect(board[from]).toBe(value); reconstructed[to] += value; });
+      expect(reconstructed).toEqual(result.board);
+      expect(new Set(result.travels.map(t => t.from)).size).toBe(board.filter(Boolean).length);
+      for (const to of result.merged) expect(result.travels.filter(t => t.to === to)).toHaveLength(2);
+    }
   });
   it('preserves tile mass before spawning across seeded random boards', () => {
     let seed = 12345;

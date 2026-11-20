@@ -16,7 +16,8 @@ const snapshot = (board, score = 0) => ({ board, score, won: false, continued: f
 const fixture = (board, score = 0, best = 128) => ({ version: 1, best, current: snapshot(board, score) });
 const scene = fixture([2, 4, 8, 16, 4, 8, 16, 32, 0, 2, 64, 128, 0, 0, 4, 256], 512, 2048);
 const getSave = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
-const click = (page, direction) => page.locator(`[data-direction="${direction}"]`).click();
+const idle = page => page.waitForFunction(() => !document.querySelector('#board').dataset.motion && document.querySelectorAll('.motion-tile').length === 0);
+const click = async (page, direction) => { await page.locator(`[data-direction="${direction}"]`).click(); await idle(page); };
 const stateMatches = (page, board) => page.waitForFunction(({ key, board }) => JSON.stringify(JSON.parse(localStorage.getItem(key)).current.board) === JSON.stringify(board), { key, board });
 
 async function setup(save, options = {}, mode = '') {
@@ -50,6 +51,7 @@ async function swipe(page, context, direction) {
   for (let i = 1; i <= 5; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + dx * i / 5, y: y + dy * i / 5, id: 0 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
+  await idle(page);
 }
 
 try {
@@ -150,6 +152,105 @@ try {
   check('corrupt storage recovers to playable new game', (await getSave(corrupt)).version === 1 && (await getSave(corrupt)).current.board.filter(Boolean).length === 2);
   const wrongFields = (await setup({ version: 1, best: 'bad', current: { board: [3] } })).page;
   check('invalid storage fields recover safely', (await getSave(wrongFields)).best === 0 && (await getSave(wrongFields)).current.board.length === 16);
+  // Real browser animation inspection: positions, intermediate frames, feedback and cancellation.
+  const moving = (await setup(fixture(row(0, 0, 0, 2)))).page;
+  await moving.locator('#board').focus();
+  await moving.keyboard.press('ArrowLeft');
+  const frames = await moving.evaluate(async () => {
+    const tile = document.querySelector('.motion-tile[data-from="3"][data-to="0"]');
+    if (!tile) return null;
+    const source = document.querySelector('[data-cell="3"]').getBoundingClientRect();
+    const destination = document.querySelector('[data-cell="0"]').getBoundingClientRect();
+    const first = tile.getBoundingClientRect().left;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const second = tile.getBoundingClientRect().left;
+    const duration = tile.getAnimations()[0]?.effect.getTiming().duration;
+    document.querySelector('#board').getAnimations({ subtree: true }).forEach(animation => { animation.pause(); animation.currentTime = 75; });
+    return { first, second, start: source.left, end: destination.left, duration,
+      hidden: tile.parentElement.getAttribute('aria-hidden'), cells: document.querySelectorAll('#board > [data-cell]').length };
+  });
+  check('150ms tile physically travels across empty cells between real rendering frames', frames && frames.first > frames.second + 1 && frames.second > frames.end && frames.first <= frames.start + 0.1 && frames.duration === 150);
+  check('animation overlay is aria-hidden and preserves sixteen logical accessible cells', frames.hidden === 'true' && frames.cells === 16);
+  const assertIntermediate = async () => {
+    const position = await moving.evaluate(() => {
+      const tile = document.querySelector('.motion-tile[data-from="3"][data-to="0"]');
+      return { phase: document.querySelector('#board').dataset.motion, x: tile?.getBoundingClientRect().left,
+        start: document.querySelector('[data-cell="3"]').getBoundingClientRect().left,
+        end: document.querySelector('[data-cell="0"]').getBoundingClientRect().left };
+    });
+    assert.ok(position.phase === 'sliding' && position.x > position.end + 1 && position.x < position.start - 1, 'screenshot must retain a real in-between tile position');
+  };
+  await assertIntermediate();
+  await moving.screenshot({ path: `${out}/sliding-intermediate.png`, fullPage: false });
+  await assertIntermediate();
+  await moving.evaluate(() => document.querySelector('#board').getAnimations({ subtree: true }).forEach(animation => animation.play()));
+  await idle(moving);
+  check('slide settles at committed destination with no ghost tiles', await moving.locator('.motion-tile').count() === 0 && await moving.locator('[data-cell="0"]').textContent() === '2');
+
+  const feedbackPage = (await setup(fixture(row(2, 0, 0, 2)))).page;
+  await feedbackPage.locator('#board').focus(); await feedbackPage.keyboard.press('ArrowLeft');
+  await feedbackPage.waitForFunction(() => document.querySelector('#board').dataset.motion === 'feedback');
+  const feedback = await feedbackPage.evaluate(() => {
+    const merged = document.querySelector('[data-feedback="merge"]');
+    const spawned = document.querySelector('[data-feedback="spawn"]');
+    const mergeFrames = merged?.getAnimations()[0]?.effect.getKeyframes();
+    const spawnFrames = spawned?.getAnimations()[0]?.effect.getKeyframes();
+    document.querySelector('#board').getAnimations({ subtree: true }).forEach(animation => { animation.pause(); animation.currentTime = 65; });
+    return { merged: merged?.textContent, spawned: spawned?.textContent, mergeFrames, spawnFrames,
+      mergedTransform: merged && getComputedStyle(merged).transform, spawnedTransform: spawned && getComputedStyle(spawned).transform };
+  });
+  check('merge destination bounces while only the newly spawned tile appears', feedback.merged === '4' && ['2', '4'].includes(feedback.spawned) && feedback.mergeFrames.some(frame => frame.transform === 'scale(1.12)') && feedback.spawnFrames[0].opacity === '0' && feedback.spawnFrames[0].transform === 'scale(0.35)' && feedback.mergedTransform !== 'none' && feedback.spawnedTransform !== 'none');
+  const assertFeedback = async () => assert.ok(await feedbackPage.locator('#board').evaluate(el => el.dataset.motion === 'feedback' && el.querySelector('[data-feedback="merge"]') && el.querySelector('[data-feedback="spawn"]') && el.getAnimations({ subtree: true }).every(animation => animation.playState === 'paused')), 'feedback screenshot must retain its paused bounce and spawn');
+  await assertFeedback();
+  await feedbackPage.screenshot({ path: `${out}/merge-spawn-feedback.png`, fullPage: false });
+  await assertFeedback();
+  await feedbackPage.evaluate(() => document.querySelector('#board').getAnimations({ subtree: true }).forEach(animation => animation.play()));
+  await idle(feedbackPage);
+  check('merge and spawn feedback fully clean up animation handles', await feedbackPage.locator('#board').evaluate(el => el.getAnimations({ subtree: true }).length === 0 && !el.querySelector('[data-feedback]')));
+
+  const rapid = (await setup(fixture(row(0, 0, 0, 2)))).page;
+  await rapid.evaluate(() => { Math.random = () => 0; });
+  await rapid.locator('#board').focus();
+  const rapidStates = [];
+  for (const arrow of ['ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowUp']) {
+    await rapid.keyboard.press(arrow);
+    rapidStates.push((await getSave(rapid)).current);
+  }
+  check('rapid inputs commit all four turns without dropping or corrupting undo', rapidStates.every((state, i) => i === 0 || JSON.stringify(state.previous.board) === JSON.stringify(rapidStates[i - 1].board)) && rapidStates[0].board.filter(Boolean).length === 2 && JSON.stringify(rapidStates.at(-1).board) === JSON.stringify([2, 2, 0, 2, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0]));
+  await rapid.locator('#undo').click();
+  check('undo during motion immediately restores previous state without ghosts', JSON.stringify((await getSave(rapid)).current.board) === JSON.stringify(rapidStates[2].board) && await rapid.locator('.motion-tile').count() === 0 && await rapid.locator('#board').evaluate(el => el.getAnimations({ subtree: true }).length === 0 && !el.dataset.motion));
+  await rapid.locator('#board').focus(); await rapid.keyboard.press('ArrowLeft');
+  await rapid.locator('#restart').click();
+  check('opening restart dialog cancels movement and feedback', await rapid.locator('.motion-tile').count() === 0 && await rapid.locator('#board').evaluate(el => !el.dataset.motion && el.getAnimations({ subtree: true }).length === 0));
+  await rapid.locator('[data-dialog="new"]').click();
+  await idle(rapid);
+  check('restart cannot resurrect an aborted turn', (await getSave(rapid)).current.score === 0 && (await getSave(rapid)).current.previous === null && await rapid.locator('.motion-tile').count() === 0);
+
+  const interrupted = (await setup(fixture(row(0, 0, 0, 2)))).page;
+  await interrupted.locator('#board').focus(); await interrupted.keyboard.press('ArrowLeft');
+  const committed = (await getSave(interrupted)).current;
+  await interrupted.setViewportSize({ width: 900, height: 800 });
+  await idle(interrupted);
+  check('resize cancels old geometry and retains the committed board', JSON.stringify((await getSave(interrupted)).current) === JSON.stringify(committed) && await interrupted.locator('.motion-tile').count() === 0);
+  await interrupted.keyboard.press('ArrowDown');
+  await interrupted.emulateMedia({ reducedMotion: 'reduce' });
+  await idle(interrupted);
+  check('changing reduced-motion during movement cancels every visual effect', await interrupted.locator('#board').evaluate(el => el.getAnimations({ subtree: true }).length === 0 && !el.querySelector('[data-feedback]')));
+  await interrupted.keyboard.press('ArrowRight');
+  check('reduced-motion performs zero movement animations and displays final state immediately', await interrupted.locator('.motion-tile').count() === 0 && await interrupted.locator('#board').evaluate(el => !el.dataset.motion && el.getAnimations({ subtree: true }).length === 0) && JSON.stringify(await interrupted.locator('[data-cell]').evaluateAll(els => els.map(el => Number(el.dataset.value)))) === JSON.stringify((await getSave(interrupted)).current.board));
+
+  const terminal = (await setup(fixture(row(1024, 0, 0, 1024)))).page;
+  await terminal.locator('#board').focus(); await terminal.keyboard.press('ArrowLeft');
+  await terminal.evaluate(() => document.querySelector('#board').getAnimations({ subtree: true }).forEach(animation => animation.pause()));
+  check('winning rule and persistence commit before animation finishes', (await getSave(terminal)).current.won === true && !await terminal.locator('dialog').isVisible());
+  // Simulate the browser visibility lifecycle; no product hook or timer advances game rules.
+  await terminal.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  check('background visibility settles terminal dialog without waiting for animation frames', await terminal.locator('[data-dialog="continue"]').isVisible() && await terminal.locator('.motion-tile').count() === 0 && await terminal.locator('#board').evaluate(el => el.getAnimations({ subtree: true }).length === 0));
+  await terminal.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
+
   check('no pageerror, console error or HTTP 404/error', errors.length === 0);
   await writeFile(`${out}/smoke-results.json`, JSON.stringify({ base, passed: checks.length, checks, errors }, null, 2));
   console.log(`\n${checks.length} browser checks passed against ${base}. Screenshots: ${out}`);

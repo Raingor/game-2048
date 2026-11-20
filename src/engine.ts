@@ -13,22 +13,37 @@ export function snapshot(state: Snapshot): Snapshot {
   return { board: [...state.board], score: state.score, won: state.won, continued: state.continued };
 }
 
-/** Resolve one line, without spawning. A merged tile cannot merge again this turn. */
-export function mergeLine(line: readonly number[]): { line: number[]; points: number } {
-  const packed = line.filter(Boolean);
+export interface TileTravel { from: number; to: number; value: number }
+
+/** One shared resolver produces both values and their provenance; no UI merge rules. */
+function resolveLine(line: readonly number[]) {
+  const packed = line.flatMap((value, from) => value ? [{ value, from }] : []);
   const result: number[] = [];
+  const travels: TileTravel[] = [];
+  const merged: number[] = [];
   let points = 0;
   for (let i = 0; i < packed.length; i++) {
-    if (packed[i] === packed[i + 1]) {
-      const value = packed[i] * 2;
-      result.push(value); points += value; i++;
-    } else result.push(packed[i]);
+    const source = packed[i];
+    const to = result.length;
+    travels.push({ ...source, to });
+    if (source.value === packed[i + 1]?.value) {
+      travels.push({ ...packed[++i], to });
+      result.push(source.value * 2); points += source.value * 2; merged.push(to);
+    } else result.push(source.value);
   }
-  return { line: result.concat(Array(line.length - result.length).fill(0)), points };
+  return { line: result.concat(Array(line.length - result.length).fill(0)), points, travels, merged };
+}
+
+/** Resolve one line, without spawning. A merged tile cannot merge again this turn. */
+export function mergeLine(line: readonly number[]): { line: number[]; points: number } {
+  const { line: result, points } = resolveLine(line);
+  return { line: result, points };
 }
 
 export function slide(board: readonly number[], direction: Direction) {
   const result = [...board];
+  const travels: TileTravel[] = [];
+  const merged: number[] = [];
   let points = 0;
   for (let n = 0; n < 4; n++) {
     const indexes = Array.from({ length: 4 }, (_, k) => {
@@ -37,11 +52,13 @@ export function slide(board: readonly number[], direction: Direction) {
       if (direction === 'up') return k * 4 + n;
       return (3 - k) * 4 + n;
     });
-    const merged = mergeLine(indexes.map(i => board[i]));
-    points += merged.points;
-    indexes.forEach((index, k) => { result[index] = merged.line[k]; });
+    const resolved = resolveLine(indexes.map(i => board[i]));
+    points += resolved.points;
+    indexes.forEach((index, k) => { result[index] = resolved.line[k]; });
+    travels.push(...resolved.travels.map(travel => ({ ...travel, from: indexes[travel.from], to: indexes[travel.to] })));
+    merged.push(...resolved.merged.map(index => indexes[index]));
   }
-  return { board: result, points, changed: result.some((value, i) => value !== board[i]) };
+  return { board: result, points, travels, merged, changed: result.some((value, i) => value !== board[i]) };
 }
 
 function randomUnit(random: Random): number {
@@ -71,15 +88,25 @@ export function status(state: Snapshot): Status {
   return canMove(state.board) ? 'playing' : 'over';
 }
 
-export function move(state: GameState, direction: Direction, random: Random = Math.random): GameState {
-  if (status(state) !== 'playing') return state;
+export function moveWithTrace(state: GameState, direction: Direction, random: Random = Math.random) {
+  if (status(state) !== 'playing') return { state, trace: null };
   const next = slide(state.board, direction);
-  if (!next.changed) return state;
+  if (!next.changed) return { state, trace: null };
+  const board = spawn(next.board, random);
   return {
-    board: spawn(next.board, random), score: state.score + next.points,
-    won: state.won || next.board.some(value => value >= 2048), continued: state.continued,
-    previous: snapshot(state),
+    state: {
+      board, score: state.score + next.points,
+      won: state.won || next.board.some(value => value >= 2048), continued: state.continued,
+      previous: snapshot(state),
+    } satisfies GameState,
+    trace: { ...next, spawned: board.findIndex((value, i) => value !== next.board[i]) },
   };
+}
+
+export type MoveTrace = NonNullable<ReturnType<typeof moveWithTrace>['trace']>;
+
+export function move(state: GameState, direction: Direction, random: Random = Math.random): GameState {
+  return moveWithTrace(state, direction, random).state;
 }
 
 export function undo(state: GameState): GameState {

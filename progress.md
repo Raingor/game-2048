@@ -41,3 +41,27 @@
 - 站点：https://raingor.github.io/game-2048/ ，实测 HTTP 200。
 - `GAME_URL=https://raingor.github.io/game-2048/ npm run test:browser`：36/36，桌面/手机真实操作、胜败、滑动、存储及资源检查全部通过。
 - 主 Agent 另独立实跑29项单测、严格构建与本地36项浏览器检查，均通过。未将依赖、构建、截图或凭据提交。
+
+## 数字块真实过渡返修（2026-11-20，本轮本地完成）
+
+用户追加要求数字块过渡，旧版16格直接替换数字加原地scale不足以满足真实移动。本轮仅修改本游戏目录，没有git/提交/推送/部署。
+
+实现：
+- `engine.ts` 行解析器同时生成数值、每非零源块from/to/value轨迹和merged目标；`moveWithTrace()` 只计算一次，并返回唯一新块位置。原move接口保留。
+- 新增 `motion.ts`：aria-hidden独立动画层，150ms源到目标平移，随后160ms合并弹跳和新块出现；16个逻辑格与可访问状态保留。
+- 逻辑/存档同步提交；快速方向输入取消旧动画后立刻作用于已提交状态，所有输入均不依赖动画锁；撤销恢复最后一次逻辑移动。
+- generation + WAAPI finished处理取消，旧动画不能回写状态；撤销、弹窗/重开、resize、visibility、pagehide、reduced-motion切换清理幽灵块。普通终局在反馈后弹窗，后台直接结算，不依赖rAF或固定超时。
+- reduced-motion下立即显示终态，无移动/弹跳/新块缩放。
+
+实跑：
+- `npm test`：37/37（22规则/轨迹+15存储）。新增8项轨迹测试，覆盖四方向、跨空格、[2,2,2,2]不连锁合并、来源唯一及重建结果一致。
+- `npm run build`：严格类型检查与生产构建成功，CSS约10.47kB / JS约14.86kB（未gzip）。
+- `npm run dev -- --port 5184` + `GAME_URL=http://localhost:5184 npm run test:browser`：50/50。
+- `GAME_URL=http://localhost:5174 npm run test:browser`：50/50，原36项保留；新增两rAF真实位置变化、overlay隐藏语义与16格、合并/生块动画帧、快速四方向无丢步、撤销/重开/resize/动态reduced-motion清理、0运动终态、胜利立即入存档及后台无需等待动画结算。无pageerror/console error/HTTP错误。
+- 首次动画fullPage截图触发视口变化，正确的resize清理导致产物拍到终帧。已只改测试截图为viewport截图；滑动截图前后断言phase=sliding且块x严格在源目标之间，feedback截图前后断言反馈标记与paused动画仍在。新版完整生产回归已通过。
+
+新增产物：`artifacts/sliding-intermediate.png`、`artifacts/merge-spawn-feedback.png`；`smoke-results.json`为50项结果。协调方并行回归可能更新同名产物，以最后验收为准。
+
+服务：本轮自己的5184开发服务已停止；原5174生产preview保持运行。新版线上复验与发布交由主Agent；不把旧版已上线视为新动画已发布。
+
+交付状态：代码/脚本/README/progress/task_plan已冻结，不再修改；没有已知功能阻塞。

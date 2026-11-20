@@ -5,7 +5,7 @@
 ## 仓库与在线试玩
 
 - GitHub：https://github.com/Raingor/game-2048
-- GitHub Pages：https://raingor.github.io/game-2048/ （已部署；线上36项真实浏览器检查通过）
+- GitHub Pages：https://raingor.github.io/game-2048/ （原版本已部署并通过线上36项检查；本轮新增真实位移动画的代码仅完成本地验收，待协调方提交发布及线上复验）
 - 每次推送 main 自动执行单元测试与生产构建，仅发布 `dist/` 静态文件。
 
 ## 启动与验证
@@ -37,6 +37,15 @@ npm run test:browser
 - 重开前确认，最高分保留。玩法弹窗支持 Escape 关闭、Tab 焦点循环与返回原焦点。
 - 只有游戏区域取得交互焦点时才接管方向键；规则弹窗和页面其他区域不接管。
 
+## 数字块过渡
+
+- 数字块在真实源格与目标格之间平滑移动约 **150ms**，合并后弹跳、新块出现约 **160ms**；不是直接替换数字后的原地缩放。
+- `engine.ts` 的同一个行解析器返回结果及每块 `from → to` 轨迹和合并目标，`moveWithTrace()` 一次计算供状态提交与视觉消费。视觉层不重复实现合并规则。
+- `motion.ts` 使用独立 `aria-hidden` WAAPI 动画层，保留16个逻辑格及其可访问标签。分数、局面、存档与胜败状态即时提交，动画只负责显示。
+- 快速输入会取消上一段视觉过渡，再从已经提交的局面立即执行下一步；没有等待动画的输入锁或丢步队列。撤销、弹窗、重开、窗口尺寸变化、页面可见性变化都会取消并清理旧动画。
+- 普通情况下在位移和反馈完成后显示胜败弹窗；切后台会直接结算显示，不依赖 requestAnimationFrame 或固定超时推进规则。异步清理由 generation 与 `Animation.finished` 控制，取消的旧回调不会恢复旧局。
+- 减少动态效果偏好开启或切换时立即清理动画并显示终态；该模式下不创建平移、弹跳或新块缩放动画。
+
 ## 保存与降级
 
 存储 key：`puzzle-2048-v1`。仅保存版本、最高分、当前棋盘/分数/达成与继续状态、最近一步快照。刷新可继续本局及撤销。
@@ -50,18 +59,19 @@ npm run test:browser
 - `src/engine.ts`：纯规则、可注入随机数、移动/合并/计分/撤销/结算，不依赖 DOM、存储或动画。
 - `src/storage.ts`：独立版本化存档、字段校验、异常降级。
 - `src/main.ts`、`src/style.css`：界面、输入、可访问弹窗、响应式和减少动态效果支持。
-- `src/engine.test.ts`、`src/storage.test.ts`：29 个单元测试。
-- `scripts/smoke.mjs`：36 项真实浏览器检查，桌面 1440×900、触屏 390×844 / 360×844，CDP 真触摸事件、胜败/撤销/重开/持久化、焦点、存储降级和错误收集。
+- `src/motion.ts`：可取消的真实位移、合并弹跳和新块出现，使用 WAAPI 与 generation 清理。
+- `src/engine.test.ts`、`src/storage.test.ts`：37 个单元测试，包含四方向轨迹、跨空格、来源唯一性及不重复合并。
+- `scripts/smoke.mjs`：50 项真实浏览器检查，保留原36项；桌面 1440×900、触屏 390×844 / 360×844，CDP 真触摸事件、胜败/撤销/重开/持久化、焦点、存储降级和错误收集。新增真实两帧位移、合并/生块反馈、快速输入/撤销/重开/resize清理、减少动态效果0运动、后台结算检查。
 - `artifacts/`：忽略的截图与 `smoke-results.json`，每次脚本运行更新。
 
 ## 实际验收结果
 
 - `npm install`：成功；48 个已审计包，0 vulnerabilities。
-- `npm test`：29/29，通过规则 14 项、存储 15 项。
-- `npm run build`：严格类型检查及生产构建成功。
-- 开发态 `npm run test:browser`：36/36。
-- 生产态 `GAME_URL=http://localhost:5174 npm run test:browser`：36/36。
-- 同一生产包子路径 `npm run preview -- --base=/game-2048/ --port 5184` + `GAME_URL=http://localhost:5184/game-2048/ npm run test:browser`：36/36。
-- 三次浏览器验收均无 pageerror、异常 console error、HTTP 404 或其他 HTTP 错误；390/360 无横向溢出。桌面和手机截图经视觉核验。
+- 本轮 `npm test`：37/37，规则与轨迹22项、存储15项。
+- 本轮 `npm run build`：严格类型检查及生产构建成功。
+- 本轮开发态 `npm run dev -- --port 5184` + `GAME_URL=http://localhost:5184 npm run test:browser`：50/50。
+- 本轮生产态 `GAME_URL=http://localhost:5174 npm run test:browser`：50/50，含新增截图前后真实中间位置断言。
+- 原版本同一生产包子路径 `npm run preview -- --base=/game-2048/ --port 5184` + `GAME_URL=http://localhost:5184/game-2048/ npm run test:browser`：36/36；本轮不宣称已重新发布或完成新版线上验收。
+- 本轮开发和生产浏览器验收均无 pageerror、异常 console error、HTTP 404 或其他 HTTP 错误；390/360 无横向溢出。
 
-截图：`artifacts/desktop-1440.png`、`mobile-390.png`、`mobile-360-reduced-motion.png`、`victory.png`、`game-over.png`。本地验证不等于远程发布；仓库及发布由协调方统一处理。
+截图：`artifacts/desktop-1440.png`、`mobile-390.png`、`mobile-360-reduced-motion.png`、`victory.png`、`game-over.png`、`sliding-intermediate.png`、`merge-spawn-feedback.png`。两张动画证据使用viewport截图，避免fullPage改变视口触发产品正确的resize清理；截图前后断言动画仍暂停在真实中间位移/反馈状态。本地验证不等于远程发布；仓库及发布由协调方统一处理。
