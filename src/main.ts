@@ -3,6 +3,7 @@ import { continueGame, createGame, moveWithTrace, status, undo, type Direction }
 import { BoardMotion } from './motion';
 import { loadSave, saveGame } from './storage';
 import { mountCharacters } from './characters';
+import { restartIcon, undoIcon } from './icons';
 
 const saved = loadSave();
 let game = saved.current ?? createGame();
@@ -27,7 +28,7 @@ app.innerHTML = `
         <div class="game-top"><p class="score-line">分数 <strong id="score">0</strong><span class="score-divider">/</span><span>最高 <b id="best">0</b></span></p><span class="target">目标 <b>2048</b></span></div>
         <div id="board" class="board" tabindex="0" role="group" aria-label="2048 棋盘，使用方向键或触摸滑动" aria-describedby="board-hint"></div>
         <div class="below-board"><p id="game-status" role="status" aria-live="polite">新的开始，向任意方向试试。</p><span class="board-size">4 × 4</span></div>
-        <div class="game-actions"><button id="undo" class="button secondary" disabled><span aria-hidden="true">↶</span> 撤销一步</button><button id="restart" class="button primary"><span aria-hidden="true">↻</span> 重新开始</button></div>
+        <div class="game-actions"><button id="undo" class="button secondary" disabled>${undoIcon} 撤销一步</button><button id="restart" class="button primary">${restartIcon} 重新开始</button></div>
         <div class="controls"><p id="board-hint"><span class="desktop-hint">点击棋盘后使用方向键<br></span>也可滑动棋盘，或轻点方向按钮</p><div class="direction-pad" role="group" aria-label="方向控制"><button data-direction="up" aria-label="向上移动">↑</button><button data-direction="left" aria-label="向左移动">←</button><button data-direction="down" aria-label="向下移动">↓</button><button data-direction="right" aria-label="向右移动">→</button></div></div>
         <p id="storage-note" class="storage-note" hidden>浏览器暂时无法保存，本局仍可正常游玩。</p>
       </section>

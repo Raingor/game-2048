@@ -104,3 +104,7 @@ GAME_URL=http://localhost:5174/ npm run test:browser
 - 本轮开发、生产预览和线上浏览器验收均无 pageerror、异常 console error、HTTP 404 或其他 HTTP 错误；390/360 无横向溢出。
 
 截图：`artifacts/desktop-1440.png`、`mobile-390.png`、`mobile-360-reduced-motion.png`、`victory.png`、`game-over.png`、`sliding-intermediate.png`、`merge-spawn-feedback.png`。两张动画证据使用viewport截图，避免fullPage改变视口触发产品正确的resize清理；截图前后断言动画仍暂停在真实中间位移/反馈状态。仓库及发布由主Agent统一处理；本轮本地与线上验收均已完成。
+
+## 图标来源
+
+页面 favicon 与界面图标于 2026-11-23 通过 opencli 从 [iconfont.cn](https://www.iconfont.cn/) 搜索采集；图标名称、ID、搜索词与落位见根目录 `../icons-source.md`。界面图标统一以 `currentColor` 渲染，favicon 使用本项目主题色。
